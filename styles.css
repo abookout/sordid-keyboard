@@ -38,6 +38,7 @@ body {
   background: none;
   border: none;
   resize: none;
+  cursor: default;
 }
 
 .keyboard {
