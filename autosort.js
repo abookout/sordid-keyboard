@@ -140,7 +140,6 @@ class Keyboard {
    * @param {number} toCol
    */
   moveKey(key, fromRow, fromCol, toRow, toCol) {
-    console.log("moveKey", { key, fromRow, fromCol, toRow, toCol });
     console.assert(
       this.keyRows[fromRow].rowEl.children.item(fromCol) === key.keyEl,
       this.keyRows[fromRow].rowEl.children.item(fromCol),
@@ -283,9 +282,10 @@ function removeElement(arr, toRemove) {
 
 function init() {
   textBoxEl = document.getElementById("text");
+  // Clear textbox; doesn't automatically clear on reload
+  textBoxEl.value = "";
   const keyboardEl = document.getElementById("keyboard");
   keyboard = new Keyboard(keyboardEl);
-  console.log(keyboard);
 }
 
 // window.addEventListener("resize", (e) => {
