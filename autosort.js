@@ -36,6 +36,7 @@ class Keyboard {
    */
   constructor(keyboardEl) {
     this.keyboardEl = keyboardEl;
+    this.keyPressPreview = new KeyPressPreview();
 
     /** @type {KeyboardRow[]} */
     this.keyRows = DEFAULT_LAYOUT.map((rowStr) => {
@@ -47,14 +48,12 @@ class Keyboard {
 
       rowWrapper.append(rowEl);
       keyboardEl.append(rowWrapper);
-      const keys = rowStr.split("").map(
-        (char) =>
-          new Key({
-            displayStr: char,
-            keyboard: this,
-            parentEl: rowEl,
-          })
-      );
+      const keys = rowStr
+        .split("")
+        .map(
+          (char) =>
+            new Key({ displayStr: char, keyboard: this, parentEl: rowEl })
+        );
 
       return new KeyboardRow(rowEl, keys);
     });
@@ -111,6 +110,13 @@ class Keyboard {
    * @returns {Key?}
    */
   getKey(row, col) {
+    if (
+      row < 0 ||
+      row >= this.keyRows.length ||
+      col < 0 ||
+      col >= this.keyRows[row].length
+    )
+      return null;
     const keyRow = this.keyRows[row];
     return keyRow.keys[col];
   }
@@ -245,11 +251,12 @@ class KeyboardRow {
 class Key {
   /**
    * Creates a new key on the keyboard, including adding it to the DOM by appending it to parentEl
-   * @param {string} displayStr String (char) to display on this key
-   * @param {Keyboard} keyboard Containing keyboard
-   * @param {Element} parentEl Containing DOM element (row)
-   * @param {number?} width Optional width; if not passed, the key will use a default width
-   * @param {Function?} onPress Optional function; if not passed, the key will write its displayStr on press
+   * @param {Object} obj
+   * @param {string} obj.displayStr String (char) to display on this key
+   * @param {Keyboard} obj.keyboard Containing keyboard
+   * @param {Element} obj.parentEl Containing DOM element (row)
+   * @param {number?} obj.width Optional width; if not passed, the key will use a default width
+   * @param {Function?} obj.onPress Optional function; if not passed, the key will write its displayStr on press
    */
   constructor({ displayStr, keyboard, parentEl, width, onPress }) {
     this.displayStr = displayStr;
@@ -267,10 +274,79 @@ class Key {
     keyEl.className = "key";
     keyEl.innerText = displayStr;
     keyEl.style.flexBasis = this.width + "px";
-    keyEl.addEventListener("mouseup", this.onPress);
+    keyEl.addEventListener("pointerup", this.onPress);
 
     parentEl.appendChild(keyEl);
     this.keyEl = keyEl;
+
+    // Register pointer events for showing pressed style and the key press preview
+    keyboard.keyPressPreview.registerPointerEvents(this);
+  }
+}
+
+class KeyPressPreview {
+  shown = false;
+  previewEl;
+
+  static Y_OFF = -60; // px
+
+  constructor() {
+    const previewEl = document.createElement("div");
+    previewEl.style.top = "-200px"; // Off the screen
+    previewEl.className = "preview";
+    document.body.append(previewEl);
+
+    // When the pointer is released, hide the preview
+    document.addEventListener("pointerup", (e) => {
+      this.hide();
+    });
+
+    this.previewEl = previewEl;
+  }
+
+  /**
+   * Call this with each key to make it visually respond to touches
+   * @param {Key} key
+   */
+  registerPointerEvents(key) {
+    // When the pointer moves over a key, make it "pressed" and show its preview
+    key.keyEl.onpointerdown = key.keyEl.onpointerover = (e) => {
+      const pressed = e.buttons !== 0;
+      if (pressed) {
+        key.keyEl.classList.add("pressed");
+        this.show(key);
+      }
+    };
+
+    // When the pointer leaves, make it not pressed (but don't hide the preview
+    // since the pointer might be over a different key now)
+    key.keyEl.onpointerout = key.keyEl.onpointerup = (e) => {
+      key.keyEl.classList.remove("pressed");
+    };
+  }
+
+  /**
+   * Show a floating box with the letter of the pressed key so the user can see
+   * past their thumbs.
+   * @param {Key} key
+   */
+  show(key) {
+    // Set preview text content
+    this.previewEl.innerText = key.keyEl.innerText;
+
+    // Set position and content of the preview
+    const keyRect = key.keyEl.getBoundingClientRect();
+    const previewRect = this.previewEl.getBoundingClientRect();
+
+    this.previewEl.style.left = `${
+      keyRect.x + keyRect.width / 2 - previewRect.width / 2
+    }px`;
+    this.previewEl.style.top = `${keyRect.y + KeyPressPreview.Y_OFF}px`;
+  }
+
+  hide() {
+    this.previewEl.style.top = "-200px"; // Off the screen
+    this.previewEl.innerText = "";
   }
 }
 

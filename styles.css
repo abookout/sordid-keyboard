@@ -1,12 +1,19 @@
-html,
-body {
-  height: 100%;
-  box-sizing: border-box;
-  margin: 0;
+html {
+  --key_color: #7b7b7b;
+  --key_shadow_color: #999;
+  --key_pressed_color: #444;
 }
-
 body {
   background-color: #313131;
+
+  color: whitesmoke;
+  font-size: 18pt;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .container {
@@ -26,7 +33,7 @@ body {
   margin-bottom: 30px;
   margin-top: 120px;
   border-radius: 4px;
-  padding: 0 10px;
+  padding: 10px;
 
   border: 1px solid whitesmoke;
   background-color: rgb(233, 233, 233);
@@ -39,6 +46,7 @@ body {
   border: none;
   resize: none;
   cursor: default;
+  font-size: 16pt;
 }
 
 .keyboard {
@@ -46,6 +54,7 @@ body {
   flex-direction: column;
   width: 100%;
   margin: 6px;
+  margin-bottom: 12px;
 }
 
 .keyboard-row {
@@ -76,8 +85,8 @@ body {
   align-items: center;
 
   border-radius: 4px;
-  background-color: #7b7b7b;
-  box-shadow: 0px 1px 0px 1px #999;
+  background-color: var(--key_color);
+  box-shadow: 0px 1px 0px 1px var(--key_shadow_color);
 
   color: whitesmoke;
   font-size: 18pt;
@@ -89,4 +98,24 @@ body {
 
 .key:not(:last-of-type) {
   margin-right: 6px;
+}
+
+.key.pressed {
+  background-color: var(--key_pressed_color);
+  box-shadow: 0px -1px 0px 1px var(--key_color);
+}
+
+.preview {
+  /* Position (top/left) set by JS */
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  line-height: 60px;
+  text-align: center;
+
+  background-color: var(--key_color);
+  box-shadow: 0px -1px 0px 2px var(--key_shadow_color);
+  border-radius: 6px;
+
+  pointer-events: none;
 }
