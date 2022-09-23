@@ -93,6 +93,10 @@ class Keyboard {
       const keyRow = this.keyRows[row];
       createSpaceEls(row, keyRow.rowEl);
     }
+
+    this.keyPressPreview.registerTouchEvents(
+      this.keyRows.flatMap((row) => row.keys.map((key) => key.keyEl))
+    );
   }
 
   // Special keypresses
@@ -278,15 +282,13 @@ class Key {
 
     parentEl.appendChild(keyEl);
     this.keyEl = keyEl;
-
-    // Register pointer events for showing pressed style and the key press preview
-    keyboard.keyPressPreview.registerPointerEvents(this);
   }
 }
 
 class KeyPressPreview {
   shown = false;
-  previewEl;
+  hoveredEl = null;
+  previewEl = null;
 
   static Y_OFF = -70; // px
 
@@ -305,37 +307,70 @@ class KeyPressPreview {
   }
 
   /**
-   * Call this with each key to make it visually respond to touches
-   * @param {Key} key
+   * Register events to detect touched key for setting its pressed style and
+   * showing the key preview
+   * @param {Element[]} keyEls
    */
-  registerPointerEvents(key) {
-    // When the pointer moves over a key, make it "pressed" and show its preview
-    key.keyEl.onpointerdown = key.keyEl.onpointerover = (e) => {
-      const pressed = e.buttons !== 0;
-      if (pressed) {
-        key.keyEl.classList.add("pressed");
-        this.show(key);
-      }
-    };
+  registerTouchEvents(keyEls) {
+    ///////// MOUSE-ONLY EVENTS
 
-    // When the pointer leaves, make it not pressed (but don't hide the preview
-    // since the pointer might be over a different key now)
-    key.keyEl.onpointerout = key.keyEl.onpointerup = (e) => {
-      key.keyEl.classList.remove("pressed");
-    };
+    // When the pointer moves over a key, make it "pressed" and show its preview
+    keyEls.forEach((keyEl) => {
+      keyEl.onpointerdown = keyEl.onpointerover = (e) => {
+        const pressed = e.buttons !== 0;
+        if (pressed) {
+          keyEl.classList.add("pressed");
+          // TODO: show preview on desktop?
+          this.show(keyEl);
+        }
+      };
+
+      // When the pointer leaves, make it not pressed (but don't hide the preview
+      // since the pointer might be over a different key now)
+      keyEl.onpointerout = keyEl.onpointerup = (e) => {
+        keyEl.classList.remove("pressed");
+      };
+    });
+
+    ////////// MOBILE-ONLY EVENTS
+
+    document.addEventListener("touchstart", (e) => {
+      const el = this._keyElFromTouchEvent(e);
+      if (!el) return;
+      el.classList.add("pressed");
+      this.show(el);
+      this.hoveredEl = el;
+    });
+
+    document.addEventListener("touchmove", (e) => {
+      const el = this._keyElFromTouchEvent(e);
+      if (!el || el === this.hoveredEl) return;
+
+      // Hovering over a new element
+      if (this.hoveredEl !== null) this.hoveredEl.classList.remove("pressed");
+      el.classList.add("pressed");
+      this.show(el);
+      this.hoveredEl = el;
+    });
+
+    document.addEventListener("touchend", (e) => {
+      this.hoveredEl.classList.remove("pressed");
+      this.hide();
+      this.hoveredEl = null;
+    });
   }
 
   /**
    * Show a floating box with the letter of the pressed key so the user can see
    * past their thumbs.
-   * @param {Key} key
+   * @param {Element} keyEl
    */
-  show(key) {
+  show(keyEl) {
     // Set preview text content
-    this.previewEl.innerText = key.keyEl.innerText;
+    this.previewEl.innerText = keyEl.innerText;
 
     // Set position and content of the preview
-    const keyRect = key.keyEl.getBoundingClientRect();
+    const keyRect = keyEl.getBoundingClientRect();
     const previewRect = this.previewEl.getBoundingClientRect();
 
     this.previewEl.style.left = `${
@@ -347,6 +382,19 @@ class KeyPressPreview {
   hide() {
     this.previewEl.style.top = "-200px"; // Off the screen
     this.previewEl.innerText = "";
+  }
+
+  /**
+   * @param {TouchEvent} e
+   */
+  _keyElFromTouchEvent(e) {
+    const touch = e.touches[0];
+    const x = touch.pageX,
+      y = touch.pageY;
+
+    const el = document.elementFromPoint(x, y);
+    if (!el || !el.classList.contains("key")) return null; // Only care about keys
+    return el;
   }
 }
 
