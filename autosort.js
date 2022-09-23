@@ -288,7 +288,7 @@ class KeyPressPreview {
   shown = false;
   previewEl;
 
-  static Y_OFF = -60; // px
+  static Y_OFF = -70; // px
 
   constructor() {
     const previewEl = document.createElement("div");
