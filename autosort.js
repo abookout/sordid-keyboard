@@ -1,6 +1,7 @@
 "use strict";
 
-const DEFAULT_LAYOUT = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
+// Spacebar on the 4th row
+const DEFAULT_LAYOUT = ["qwertyuiop", "asdfghjkl", "zxcvbnm", ""];
 const NUM_ROWS = DEFAULT_LAYOUT.length;
 
 // px
@@ -8,8 +9,9 @@ const DESKTOP_WIDTH = 500;
 
 // Relative widths of different key types
 const KEY_WIDTH = 50; // "Standard" letter key
-const BACKSPACE_WIDTH = 80;
-const ENTER_WIDTH = 60;
+const BACKSPACE_WIDTH = 100;
+const ENTER_WIDTH = 100;
+const SPACEBAR_WIDTH = 200;
 
 const ROW_OFFSETS = {
   [0]: 0,
@@ -58,7 +60,7 @@ class Keyboard {
       return new KeyboardRow(rowEl, keys);
     });
 
-    this.keyRows[0].keys.push(
+    this.keyRows[0].addDefaultKey(
       new Key({
         displayStr: "←",
         keyboard: this,
@@ -67,7 +69,7 @@ class Keyboard {
         onPress: Keyboard.backspace,
       })
     );
-    this.keyRows[1].keys.push(
+    this.keyRows[1].addDefaultKey(
       new Key({
         displayStr: "↵",
         keyboard: this,
@@ -77,8 +79,17 @@ class Keyboard {
       })
     );
 
+    this.keyRows[3].addDefaultKey(
+      new Key({
+        displayStr: "―",
+        keyboard: this,
+        parentEl: this.keyRows[3].rowEl,
+        width: SPACEBAR_WIDTH,
+        onPress: Keyboard.spacebar,
+      })
+    );
+
     const createSpaceEls = (rowNum, parent) => {
-      // span to allow last-of-type in CSS
       const el1 = document.createElement("span");
       const el2 = document.createElement("span");
       el1.style.flexBasis = el2.style.flexBasis =
@@ -105,6 +116,9 @@ class Keyboard {
   }
   static enter() {
     textBoxEl.value += "\n";
+  }
+  static spacebar() {
+    textBoxEl.value += " ";
   }
 
   /**
@@ -150,6 +164,7 @@ class Keyboard {
    * @param {number} toCol
    */
   moveKey(key, fromRow, fromCol, toRow, toCol) {
+    // console.log("Moved " + key.displayStr, { fromRow, fromCol, toRow, toCol });
     console.assert(
       this.keyRows[fromRow].rowEl.children.item(fromCol) === key.keyEl,
       this.keyRows[fromRow].rowEl.children.item(fromCol),
@@ -167,8 +182,8 @@ class Keyboard {
   }
 
   /**
-   * Sorts the pressed key into the top left and shuffles the rest to fit
-   * Thanks https://stackoverflow.com/a/53618561
+   * Sorts the pressed key into the top left and shuffles the last keys in each
+   * row to fit the (approximate) shape of the default keyboard
    * @param {Key} pressedKey
    */
   sortKeys(pressedKey) {
@@ -178,15 +193,20 @@ class Keyboard {
     // Remove the pressed key and add it back at 0,0
     this.moveKey(pressedKey, oldRow, oldCol, 0, 0);
 
-    // Shuffle last element down from row i to row i+1 (pressedKey's old row) number of times - 0 if it
-    // was on top row, 1 if on row 1, etc.
-    for (let i = 0; i < oldRow; i++) {
-      const keysArr = this.keyRows[i].keys;
-      // Move to next row at column 0 (left)
-      const key = keysArr[keysArr.length - 1];
-      this.moveKey(key, i, keysArr.length - 1, i + 1, 0);
+    // For each row starting from the top, check if it's wider than it should
+    // be. If it is, shuffle the last keys down until it's a good width, then
+    // move on to the next row.
+    for (let i = 0; i < this.keyRows.length - 1; i++) {
+      const keyRow = this.keyRows[i];
+      const keysArr = keyRow.keys;
+
+      while (keyRow.rowWidth() > keyRow.defaultRowWidth) {
+        let lastKey = keysArr[keysArr.length - 1];
+        this.moveKey(lastKey, i, keysArr.length - 1, i + 1, 0);
+      }
     }
 
+    // Animate them!
     const newFlexItemsInfo = this.getFlexItemsInfo();
     this.animateFlexItems(oldFlexItemsInfo, newFlexItemsInfo);
   }
@@ -249,6 +269,25 @@ class KeyboardRow {
   constructor(rowEl, keys) {
     this.rowEl = rowEl;
     this.keys = keys;
+    /** @type {number} The default total width of keys in this row */
+    this.defaultRowWidth = this.rowWidth();
+  }
+
+  /**
+   * Use to add another key to this row as if it was added in the constructor;
+   * without doing this, the defaultRowWidth is not properly calculated.
+   * @param {Key} key
+   */
+  addDefaultKey(key) {
+    this.keys.push(key);
+    this.defaultRowWidth = this.rowWidth();
+  }
+
+  /**
+   * @returns {number} The current total width of keys in this row
+   */
+  rowWidth() {
+    return this.keys.reduce((prev, cur) => prev + cur.width, 0);
   }
 }
 
